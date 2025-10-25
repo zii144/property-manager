@@ -8,6 +8,7 @@ import { TextFrequencyModule } from "./modules/TextFrequencyModule.js";
 import { CurrencyTranslatorModule } from "./modules/CurrencyTranslatorModule.js";
 import { JsonToExcelModule } from "./modules/JsonToExcelModule.js";
 import { DataMappingModule } from "./modules/DataMappingModule.js";
+import { SignalSurveyModule } from "./modules/SignalSurveyModule.js";
 
 class TextAnalysisApp {
   constructor() {
@@ -71,6 +72,10 @@ class TextAnalysisApp {
     // Register Data Mapping module
     const dataMappingModule = new DataMappingModule();
     this.moduleManager.registerModule(dataMappingModule);
+
+    // Register Signal Survey module
+    const signalSurveyModule = new SignalSurveyModule();
+    this.moduleManager.registerModule(signalSurveyModule);
 
     // Future modules can be registered here
     // const wordCloudModule = new WordCloudModule();

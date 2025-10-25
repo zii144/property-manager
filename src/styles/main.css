@@ -1425,6 +1425,40 @@ body {
   color: var(--gray-900);
 }
 
+/* Load Example Button Styles */
+.load-example-btn {
+  background: var(--primary-color);
+  color: var(--white);
+  border: none;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  margin-top: var(--space-3);
+  width: 100%;
+}
+
+.load-example-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.load-example-btn:active {
+  transform: translateY(0);
+}
+
+.example-card:hover .load-example-btn {
+  background: var(--white);
+  color: var(--primary-color);
+}
+
+.example-card:hover .load-example-btn:hover {
+  background: var(--gray-100);
+}
+
 /* Legacy main content for backward compatibility */
 .main {
   flex: 1;

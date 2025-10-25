@@ -1,0 +1,91 @@
+[
+  {
+    "id": "2ctVxw1kt3hhwNG6n9k3WzPiAux2",
+    "displayName": "User",
+    "createdAt": "2025-09-30T06:38:47.382Z",
+    "missionsInProgress": 0,
+    "uid": "2ctVxw1kt3hhwNG6n9k3WzPiAux2",
+    "updatedAt": "2025-09-30T06:38:47.382Z",
+    "role": "inspector",
+    "missionsCompleted": 0,
+    "statistics": {
+      "flashingIntersections": 0,
+      "totalControllers": 0,
+      "totalSignalPoles": 0,
+      "threeColorIntersections": 0,
+      "totalPedestrianSignals": 0,
+      "singleFlashIntersections": 0
+    },
+    "email": "user2@iactor.com.tw",
+    "readTime": "2025-10-25T05:09:57.438Z"
+  },
+  {
+    "id": "OteXRJMnqtaZwTS49EiOzhfUVe03",
+    "missionsInProgress": 0,
+    "createdAt": "2025-09-30T06:11:00.075Z",
+    "statistics": {
+      "flashingIntersections": 0,
+      "totalSignalPoles": 0,
+      "threeColorIntersections": 0,
+      "singleFlashIntersections": 0,
+      "totalControllers": 0,
+      "totalPedestrianSignals": 0
+    },
+    "email": "hmc@iactor.com.tw",
+    "missionsCompleted": 0,
+    "uid": "OteXRJMnqtaZwTS49EiOzhfUVe03",
+    "role": "admin",
+    "displayName": "User",
+    "updatedAt": {
+      "_seconds": 1761130177,
+      "_nanoseconds": 192000000
+    },
+    "readTime": "2025-10-25T05:09:57.460Z"
+  },
+  {
+    "id": "VlJefm51jzgdWqMbyfoKZ6BeHBo1",
+    "missionsInProgress": 0,
+    "email": "user1@iactor.com.tw",
+    "statistics": {
+      "totalPedestrianSignals": 0,
+      "totalSignalPoles": 0,
+      "threeColorIntersections": 0,
+      "totalControllers": 0,
+      "singleFlashIntersections": 0,
+      "flashingIntersections": 0
+    },
+    "missionsCompleted": 0,
+    "uid": "VlJefm51jzgdWqMbyfoKZ6BeHBo1",
+    "createdAt": "2025-09-30T06:13:06.078Z",
+    "displayName": "User",
+    "role": "inspector",
+    "updatedAt": {
+      "_seconds": 1761110221,
+      "_nanoseconds": 712000000
+    },
+    "readTime": "2025-10-25T05:09:57.486Z"
+  },
+  {
+    "id": "vo22sOnzwVSnDSM74feHWufvRjs2",
+    "missionsCompleted": 0,
+    "missionsInProgress": 0,
+    "createdAt": "2025-09-30T06:34:04.293Z",
+    "email": "zii@iactor.com.tw",
+    "uid": "vo22sOnzwVSnDSM74feHWufvRjs2",
+    "statistics": {
+      "flashingIntersections": 0,
+      "singleFlashIntersections": 0,
+      "totalSignalPoles": 0,
+      "totalPedestrianSignals": 0,
+      "threeColorIntersections": 0,
+      "totalControllers": 0
+    },
+    "displayName": "User",
+    "role": "admin",
+    "updatedAt": {
+      "_seconds": 1760948350,
+      "_nanoseconds": 641000000
+    },
+    "readTime": "2025-10-25T05:09:57.509Z"
+  }
+]
