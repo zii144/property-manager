@@ -652,9 +652,15 @@ export class SignalSurveyModule extends Module {
       console.log("Data type statistics:", dataTypeStats);
       console.log("Sample processed row:", rows[0]);
 
+      // Sort headers based on data type and predefined order
+      const sortedHeaders = this.sortHeaders(
+        Array.from(headers),
+        dataTypeStats
+      );
+
       return {
         data: rows,
-        headers: Array.from(headers).sort(),
+        headers: sortedHeaders,
         stats: {
           processed: processedCount,
           errors: errorCount,
@@ -695,6 +701,166 @@ export class SignalSurveyModule extends Module {
     }
 
     return "unknown";
+  }
+
+  /**
+   * Sort headers based on data type and predefined order
+   */
+  sortHeaders(headers, dataTypeStats) {
+    // Determine the primary data type
+    const primaryDataType = Object.entries(dataTypeStats)
+      .filter(([_, count]) => count > 0)
+      .sort(([_, a], [__, b]) => b - a)[0]?.[0];
+
+    if (primaryDataType === "reports") {
+      return this.sortReportHeaders(headers);
+    } else if (primaryDataType === "users") {
+      return this.sortUserHeaders(headers);
+    } else if (primaryDataType === "report-notes") {
+      return this.sortReportNotesHeaders(headers);
+    }
+
+    // Default sorting
+    return headers.sort();
+  }
+
+  /**
+   * Sort headers for reports data in the specified order
+   */
+  sortReportHeaders(headers) {
+    const reportOrder = [
+      "Record_Index",
+      "Report_Path",
+      "Read_Time",
+      "Created_By",
+      "Creator_Display_Name",
+      "Intersection_Name",
+      "Intersection_ID",
+      "Survey_Date",
+      "Inspector_Code",
+      "Status",
+      "Title",
+      "Description",
+      "Created_At",
+      "Updated_At",
+      "Answer_Count",
+      "Answer_A0",
+      "Answer_A1-1",
+      "Answer_A1-2",
+      "Answer_A3-1",
+      "Answer_A3-2",
+      "Answer_A3-3",
+      "Answer_A3-4",
+      "Answer_A3-5",
+      "Answer_A3-6",
+      "Answer_A3-7",
+      "Answer_A3-8",
+      "Answer_A3-9",
+      "Answer_A3-10",
+      "Answer_A4-1",
+      "Answer_A4-2",
+      "Answer_A4-3",
+      "Answer_A5-1",
+      "Answer_A5-2",
+      "File_Count",
+      "Tags",
+      "Region_IDs",
+    ];
+
+    const sortedHeaders = [];
+    const remainingHeaders = new Set(headers);
+
+    // Add headers in the specified order
+    reportOrder.forEach((header) => {
+      if (remainingHeaders.has(header)) {
+        sortedHeaders.push(header);
+        remainingHeaders.delete(header);
+      }
+    });
+
+    // Add any remaining headers that weren't in the predefined order
+    const remainingArray = Array.from(remainingHeaders).sort();
+    sortedHeaders.push(...remainingArray);
+
+    return sortedHeaders;
+  }
+
+  /**
+   * Sort headers for users data
+   */
+  sortUserHeaders(headers) {
+    const userOrder = [
+      "Record_Index",
+      "User_Path",
+      "Read_Time",
+      "User_ID",
+      "Email",
+      "Display_Name",
+      "Role",
+      "Missions_Completed",
+      "Missions_In_Progress",
+      "Created_At",
+      "Updated_At",
+      "Flashing_Intersections",
+      "Single_Flash_Intersections",
+      "Total_Signal_Poles",
+      "Total_Pedestrian_Signals",
+      "Three_Color_Intersections",
+      "Total_Controllers",
+    ];
+
+    const sortedHeaders = [];
+    const remainingHeaders = new Set(headers);
+
+    userOrder.forEach((header) => {
+      if (remainingHeaders.has(header)) {
+        sortedHeaders.push(header);
+        remainingHeaders.delete(header);
+      }
+    });
+
+    const remainingArray = Array.from(remainingHeaders).sort();
+    sortedHeaders.push(...remainingArray);
+
+    return sortedHeaders;
+  }
+
+  /**
+   * Sort headers for report-notes data
+   */
+  sortReportNotesHeaders(headers) {
+    const noteOrder = [
+      "Record_Index",
+      "Note_Index",
+      "Report_Notes_Path",
+      "Read_Time",
+      "Report_ID",
+      "User_ID",
+      "Report_Created_At",
+      "Report_Updated_At",
+      "Question_ID",
+      "Note_Text",
+      "Note_Created_At",
+      "Note_Updated_At",
+      "Image_Count",
+      "Total_Image_Size",
+      "Image_URLs",
+    ];
+
+    const sortedHeaders = [];
+    const remainingHeaders = new Set(headers);
+
+    noteOrder.forEach((header) => {
+      if (remainingHeaders.has(header)) {
+        sortedHeaders.push(header);
+        remainingHeaders.delete(header);
+      }
+    });
+
+    const remainingArray = Array.from(remainingHeaders).sort();
+    sortedHeaders.push(...remainingArray);
+
+    return sortedHeaders;
   }
 
   /**
@@ -861,10 +1027,9 @@ export class SignalSurveyModule extends Module {
       }
     }
 
-    // Process report data
+    // Process report data in the specified column order
     if (reportData) {
-      // Basic report information
-      if (reportData.id) row["Report_ID"] = reportData.id;
+      // Basic report information in order
       if (reportData.createdBy) row["Created_By"] = reportData.createdBy;
       if (reportData.displayName)
         row["Creator_Display_Name"] = reportData.displayName;
@@ -895,11 +1060,44 @@ export class SignalSurveyModule extends Module {
       if (reportData.answers && Array.isArray(reportData.answers)) {
         row["Answer_Count"] = reportData.answers.length;
 
-        // Flatten answers if requested
+        // Flatten answers if requested - in specific order
         if (options.flattenStatistics) {
+          // Define the specific answer order
+          const answerOrder = [
+            "A0",
+            "A1-1",
+            "A1-2",
+            "A3-1",
+            "A3-2",
+            "A3-3",
+            "A3-4",
+            "A3-5",
+            "A3-6",
+            "A3-7",
+            "A3-8",
+            "A3-9",
+            "A3-10",
+            "A4-1",
+            "A4-2",
+            "A4-3",
+            "A5-1",
+            "A5-2",
+          ];
+
+          // First, add answers in the specified order
+          answerOrder.forEach((questionId) => {
+            const answer = reportData.answers.find(
+              (a) => a.questionId === questionId
+            );
+            row[`Answer_${questionId}`] = answer ? answer.value || "" : "";
+          });
+
+          // Then add any other answers that weren't in the predefined order
           reportData.answers.forEach((answer) => {
-            const key = `Answer_${answer.questionId}`;
-            row[key] = answer.value || "";
+            if (!answerOrder.includes(answer.questionId)) {
+              const key = `Answer_${answer.questionId}`;
+              row[key] = answer.value || "";
+            }
           });
         } else {
           row["Answers"] = JSON.stringify(reportData.answers);
