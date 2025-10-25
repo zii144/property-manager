@@ -3,6 +3,7 @@ import { Module } from "../core/Module.js";
 /**
  * JSON to Excel Module
  * Convert JSON data to Excel-friendly table format
+ * Version: 2.0 - Added Signal Survey data support
  */
 export class JsonToExcelModule extends Module {
   constructor() {
@@ -55,43 +56,6 @@ export class JsonToExcelModule extends Module {
             </div>
           </div>
 
-          <div class="conversion-options">
-            <h3 class="options-title">Conversion Options</h3>
-            <div class="options-grid">
-              <div class="option-group">
-                <label class="option-label">
-                  <input type="checkbox" id="flattenNested" checked>
-                  <span class="checkmark"></span>
-                  Flatten nested objects
-                </label>
-                <p class="option-description">Convert nested objects to columns (e.g., user.address.street)</p>
-              </div>
-              <div class="option-group">
-                <label class="option-label">
-                  <input type="checkbox" id="includeArrayIndex" checked>
-                  <span class="checkmark"></span>
-                  Include array indices
-                </label>
-                <p class="option-description">Add index column for array elements</p>
-              </div>
-              <div class="option-group">
-                <label class="option-label">
-                  <input type="checkbox" id="convertDates" checked>
-                  <span class="checkmark"></span>
-                  Convert date strings
-                </label>
-                <p class="option-description">Detect and format date strings</p>
-              </div>
-              <div class="option-group">
-                <label class="option-label">
-                  <input type="checkbox" id="includeEmptyRows" checked>
-                  <span class="checkmark"></span>
-                  Include empty rows
-                </label>
-                <p class="option-description">Keep rows with null/undefined values</p>
-              </div>
-            </div>
-          </div>
 
           <div class="conversion-actions">
             <button id="convertBtn" class="btn btn-primary">
@@ -323,15 +287,28 @@ export class JsonToExcelModule extends Module {
     try {
       this.updateStatus("processing", "Converting JSON...");
 
-      const options = this.getConversionOptions();
-      const result = this.processJsonData(this.jsonData, options);
+      // Check if this is Signal Survey data
+      const dataType = this.detectSignalSurveyDataType(this.jsonData);
+
+      let result;
+      if (dataType) {
+        result = this.processSignalSurveyData(this.jsonData, dataType);
+      } else {
+        const options = this.getConversionOptions();
+        result = this.processJsonData(this.jsonData, options);
+      }
 
       this.tableData = result.data;
       this.headers = result.headers;
 
       this.renderTable();
       this.showPreview();
-      this.updateStatus("success", "Conversion completed successfully");
+      this.updateStatus(
+        "success",
+        `Conversion completed successfully (${
+          dataType ? dataType + " data" : "generic data"
+        })`
+      );
     } catch (error) {
       console.error("Conversion error:", error);
       this.showNotification(`Conversion failed: ${error.message}`, "error");
@@ -340,16 +317,63 @@ export class JsonToExcelModule extends Module {
   }
 
   /**
+   * Detect if this is Signal Survey data and return the type
+   */
+  detectSignalSurveyDataType(data) {
+    if (!Array.isArray(data) || data.length === 0) return null;
+
+    const firstItem = data[0];
+
+    // Check for Firestore format data (with path and data properties)
+    if (firstItem.path && firstItem.data) {
+      if (firstItem.path.startsWith("users/")) return "users";
+      if (firstItem.path.startsWith("reports/")) return "reports";
+      if (firstItem.path.startsWith("report-notes/")) return "report-notes";
+    }
+
+    // Check for processed format data
+    // Check for users data
+    if (
+      firstItem.id &&
+      firstItem.email &&
+      firstItem.role &&
+      firstItem.statistics
+    ) {
+      return "users";
+    }
+
+    // Check for reports data
+    if (
+      firstItem.id &&
+      firstItem.intersectionName &&
+      firstItem.answers &&
+      firstItem.createdBy
+    ) {
+      return "reports";
+    }
+
+    // Check for report-notes data
+    if (
+      firstItem.id &&
+      firstItem.reportId &&
+      firstItem.userId &&
+      firstItem.notes
+    ) {
+      return "report-notes";
+    }
+
+    return null;
+  }
+
+  /**
    * Get conversion options
    */
   getConversionOptions() {
     return {
-      flattenNested: document.getElementById("flattenNested")?.checked ?? true,
-      includeArrayIndex:
-        document.getElementById("includeArrayIndex")?.checked ?? true,
-      convertDates: document.getElementById("convertDates")?.checked ?? true,
-      includeEmptyRows:
-        document.getElementById("includeEmptyRows")?.checked ?? true,
+      flattenNested: true,
+      includeArrayIndex: true,
+      convertDates: true,
+      includeEmptyRows: true,
     };
   }
 
@@ -380,6 +404,232 @@ export class JsonToExcelModule extends Module {
       data: rows,
       headers: Array.from(headers).sort(),
     };
+  }
+
+  /**
+   * Process Signal Survey data with specialized field mapping
+   */
+  processSignalSurveyData(data, dataType) {
+    let rows = [];
+    let headers = [];
+
+    if (!Array.isArray(data)) {
+      throw new Error("Signal Survey data must be an array");
+    }
+
+    // Check if this is Firestore format data (with path and data properties)
+    const isFirestoreFormat = data.length > 0 && data[0].path && data[0].data;
+
+    switch (dataType) {
+      case "users":
+        headers = [
+          "User_Path",
+          "Read_Time",
+          "User_ID",
+          "Email",
+          "Display_Name",
+          "Role",
+          "Missions_Completed",
+          "Missions_In_Progress",
+          "Created_At",
+          "Updated_At",
+          "Flashing_Intersections",
+          "Single_Flash_Intersections",
+          "Total_Signal_Poles",
+          "Total_Pedestrian_Signals",
+          "Three_Color_Intersections",
+          "Total_Controllers",
+        ];
+
+        data.forEach((item, index) => {
+          let user;
+          let userPath;
+          let readTime;
+
+          if (isFirestoreFormat) {
+            // Firestore format
+            user = item.data;
+            userPath = item.path;
+            readTime = item.readTime;
+          } else {
+            // Processed format
+            user = item;
+            userPath = `users/${user.id}`;
+            readTime = user.readTime;
+          }
+
+          const row = {
+            User_Path: userPath,
+            Read_Time: this.formatDateTime(readTime),
+            User_ID: user.id || user.uid || "",
+            Email: user.email || "",
+            Display_Name: user.displayName || "",
+            Role: user.role || "",
+            Missions_Completed: user.missionsCompleted || 0,
+            Missions_In_Progress: user.missionsInProgress || 0,
+            Created_At: this.formatDateTime(user.createdAt),
+            Updated_At: this.formatDateTime(user.updatedAt),
+            Flashing_Intersections: user.statistics?.flashingIntersections || 0,
+            Single_Flash_Intersections:
+              user.statistics?.singleFlashIntersections || 0,
+            Total_Signal_Poles: user.statistics?.totalSignalPoles || 0,
+            Total_Pedestrian_Signals:
+              user.statistics?.totalPedestrianSignals || 0,
+            Three_Color_Intersections:
+              user.statistics?.threeColorIntersections || 0,
+            Total_Controllers: user.statistics?.totalControllers || 0,
+          };
+          rows.push(row);
+        });
+        break;
+
+      case "reports":
+        headers = [
+          "Report_Path",
+          "Read_Time",
+          "Report_ID",
+          "Created_By",
+          "Display_Name",
+          "Intersection_Name",
+          "Intersection_ID",
+          "Survey_Date",
+          "Inspector_Code",
+          "Status",
+          "Title",
+          "Description",
+          "Created_At",
+          "Updated_At",
+          "Tags",
+          "Region_IDs",
+        ];
+
+        data.forEach((item, index) => {
+          let report;
+          let reportPath;
+          let readTime;
+
+          if (isFirestoreFormat) {
+            // Firestore format
+            report = item.data;
+            reportPath = item.path;
+            readTime = item.readTime;
+          } else {
+            // Processed format
+            report = item;
+            reportPath = `reports/${report.id}`;
+            readTime = report.readTime;
+          }
+
+          const row = {
+            Report_Path: reportPath,
+            Read_Time: this.formatDateTime(readTime),
+            Report_ID: report.id || "",
+            Created_By: report.createdBy || "",
+            Display_Name: report.displayName || "",
+            Intersection_Name: report.intersectionName || "",
+            Intersection_ID: report.intersectionId || "",
+            Survey_Date: report.surveyDate || "",
+            Inspector_Code: report.inspectorCode || "",
+            Status: report.status || "",
+            Title: report.title || "",
+            Description: report.description || "",
+            Created_At: this.formatDateTime(report.createdAt),
+            Updated_At: this.formatDateTime(report.updatedAt),
+            Tags: Array.isArray(report.tags) ? report.tags.join(", ") : "",
+            Region_IDs: Array.isArray(report.regionIds)
+              ? report.regionIds.join(", ")
+              : "",
+          };
+          rows.push(row);
+        });
+        break;
+
+      case "report-notes":
+        headers = [
+          "Note_Path",
+          "Read_Time",
+          "Note_ID",
+          "Report_ID",
+          "User_ID",
+          "Created_At",
+          "Updated_At",
+          "Notes_Count",
+        ];
+
+        data.forEach((item, index) => {
+          let note;
+          let notePath;
+          let readTime;
+
+          if (isFirestoreFormat) {
+            // Firestore format
+            note = item.data;
+            notePath = item.path;
+            readTime = item.readTime;
+          } else {
+            // Processed format
+            note = item;
+            notePath = `report-notes/${note.id}`;
+            readTime = note.readTime;
+          }
+
+          const row = {
+            Note_Path: notePath,
+            Read_Time: this.formatDateTime(readTime),
+            Note_ID: note.id || "",
+            Report_ID: note.reportId || "",
+            User_ID: note.userId || "",
+            Created_At: this.formatDateTime(note.createdAt),
+            Updated_At: this.formatDateTime(note.updatedAt),
+            Notes_Count: Array.isArray(note.notes) ? note.notes.length : 0,
+          };
+          rows.push(row);
+        });
+        break;
+
+      default:
+        throw new Error(`Unknown data type: ${dataType}`);
+    }
+
+    return {
+      data: rows,
+      headers: headers,
+    };
+  }
+
+  /**
+   * Format date/time string for display
+   */
+  formatDateTime(dateValue) {
+    if (!dateValue) return "";
+
+    try {
+      let date;
+
+      // Handle Firestore timestamp objects
+      if (dateValue._seconds) {
+        date = new Date(
+          dateValue._seconds * 1000 + (dateValue._nanoseconds || 0) / 1000000
+        );
+      } else {
+        date = new Date(dateValue);
+      }
+
+      if (isNaN(date.getTime())) return "";
+
+      return date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+    } catch (error) {
+      console.warn("Date formatting error:", error);
+      return "";
+    }
   }
 
   /**

@@ -16,6 +16,15 @@ export class SignalSurveyModule extends Module {
     this.tableData = [];
     this.headers = [];
     this.isValidJson = false;
+    this.filteredData = null;
+    this.sortedData = null;
+    this.dataTypeStats = null;
+
+    // Performance optimization properties
+    this.currentPage = 1;
+    this.pageSize = 100;
+    this.totalPages = 1;
+    this.isProcessing = false;
   }
 
   /**
@@ -141,14 +150,65 @@ export class SignalSurveyModule extends Module {
                 </svg>
                 Copy Table
               </button>
-              <button id="signalDownloadCsvBtn" class="btn btn-download">
-                <svg class="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7,10 12,15 17,10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Download CSV
-              </button>
+              <div class="export-dropdown">
+                <button id="signalExportBtn" class="btn btn-download">
+                  <svg class="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7,10 12,15 17,10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  Export Data
+                  <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6,9 12,15 18,9"></polyline>
+                  </svg>
+                </button>
+                <div class="export-menu" id="signalExportMenu">
+                  <button id="signalDownloadCsvBtn" class="export-option">
+                    <svg class="export-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14,2 14,8 20,8"></polyline>
+                    </svg>
+                    Download CSV
+                  </button>
+                  <button id="signalDownloadJsonBtn" class="export-option">
+                    <svg class="export-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 7V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z"></path>
+                      <polyline points="14,2 14,8 20,8"></polyline>
+                    </svg>
+                    Download JSON
+                  </button>
+                  <button id="signalDownloadTxtBtn" class="export-option">
+                    <svg class="export-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14,2 14,8 20,8"></polyline>
+                    </svg>
+                    Download TXT
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-controls" id="signalTableControls" style="display: none;">
+            <div class="control-group">
+              <label for="signalFilterColumn" class="control-label">Filter by column:</label>
+              <select id="signalFilterColumn" class="control-select">
+                <option value="">All columns</option>
+              </select>
+              <input type="text" id="signalFilterValue" class="control-input" placeholder="Filter value...">
+              <button id="signalApplyFilter" class="btn btn-small">Apply Filter</button>
+              <button id="signalClearFilter" class="btn btn-small btn-secondary">Clear</button>
+            </div>
+            <div class="control-group">
+              <label for="signalSortColumn" class="control-label">Sort by:</label>
+              <select id="signalSortColumn" class="control-select">
+                <option value="">No sorting</option>
+              </select>
+              <select id="signalSortOrder" class="control-select">
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+              <button id="signalApplySort" class="btn btn-small">Apply Sort</button>
             </div>
           </div>
           
@@ -163,6 +223,53 @@ export class SignalSurveyModule extends Module {
               <span class="stat-item">
                 <strong>Data Type:</strong> <span id="signalDataType">-</span>
               </span>
+              <span class="stat-item">
+                <strong>Page Size:</strong> 
+                <select id="signalPageSize" class="page-size-select">
+                  <option value="50">50</option>
+                  <option value="100" selected>100</option>
+                  <option value="200">200</option>
+                  <option value="500">500</option>
+                  <option value="1000">1000</option>
+                </select>
+              </span>
+            </div>
+          </div>
+
+          <div class="pagination-controls" id="signalPaginationControls" style="display: none;">
+            <div class="pagination-info">
+              <span>Page <span id="signalCurrentPage">1</span> of <span id="signalTotalPages">1</span></span>
+              <span class="pagination-stats">
+                Showing <span id="signalStartRecord">1</span> to <span id="signalEndRecord">100</span> of <span id="signalTotalRecords">0</span> records
+              </span>
+            </div>
+            <div class="pagination-buttons">
+              <button id="signalFirstPage" class="btn btn-small" disabled>
+                <svg class="pagination-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="11,17 6,12 11,7"></polyline>
+                  <polyline points="18,17 13,12 18,7"></polyline>
+                </svg>
+                First
+              </button>
+              <button id="signalPrevPage" class="btn btn-small" disabled>
+                <svg class="pagination-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="15,18 9,12 15,6"></polyline>
+                </svg>
+                Previous
+              </button>
+              <button id="signalNextPage" class="btn btn-small" disabled>
+                Next
+                <svg class="pagination-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9,18 15,12 9,6"></polyline>
+                </svg>
+              </button>
+              <button id="signalLastPage" class="btn btn-small" disabled>
+                Last
+                <svg class="pagination-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="13,17 18,12 13,7"></polyline>
+                  <polyline points="6,17 11,12 6,7"></polyline>
+                </svg>
+              </button>
             </div>
           </div>
 
@@ -228,7 +335,19 @@ export class SignalSurveyModule extends Module {
     const validateBtn = document.getElementById("signalValidateBtn");
     const loadExampleBtn = document.getElementById("loadExampleBtn");
     const copyTableBtn = document.getElementById("signalCopyTableBtn");
+    const exportBtn = document.getElementById("signalExportBtn");
+    const exportMenu = document.getElementById("signalExportMenu");
     const downloadCsvBtn = document.getElementById("signalDownloadCsvBtn");
+    const downloadJsonBtn = document.getElementById("signalDownloadJsonBtn");
+    const downloadTxtBtn = document.getElementById("signalDownloadTxtBtn");
+    const applyFilterBtn = document.getElementById("signalApplyFilter");
+    const clearFilterBtn = document.getElementById("signalClearFilter");
+    const applySortBtn = document.getElementById("signalApplySort");
+    const pageSizeSelect = document.getElementById("signalPageSize");
+    const firstPageBtn = document.getElementById("signalFirstPage");
+    const prevPageBtn = document.getElementById("signalPrevPage");
+    const nextPageBtn = document.getElementById("signalNextPage");
+    const lastPageBtn = document.getElementById("signalLastPage");
 
     if (convertBtn) {
       this.addEventListener(convertBtn, "click", () => this.convertJson());
@@ -245,8 +364,45 @@ export class SignalSurveyModule extends Module {
     if (copyTableBtn) {
       this.addEventListener(copyTableBtn, "click", () => this.copyTable());
     }
+    if (exportBtn) {
+      this.addEventListener(exportBtn, "click", () => this.toggleExportMenu());
+    }
     if (downloadCsvBtn) {
       this.addEventListener(downloadCsvBtn, "click", () => this.downloadCsv());
+    }
+    if (downloadJsonBtn) {
+      this.addEventListener(downloadJsonBtn, "click", () =>
+        this.downloadJson()
+      );
+    }
+    if (downloadTxtBtn) {
+      this.addEventListener(downloadTxtBtn, "click", () => this.downloadTxt());
+    }
+    if (applyFilterBtn) {
+      this.addEventListener(applyFilterBtn, "click", () => this.applyFilter());
+    }
+    if (clearFilterBtn) {
+      this.addEventListener(clearFilterBtn, "click", () => this.clearFilter());
+    }
+    if (applySortBtn) {
+      this.addEventListener(applySortBtn, "click", () => this.applySort());
+    }
+    if (pageSizeSelect) {
+      this.addEventListener(pageSizeSelect, "change", () =>
+        this.changePageSize()
+      );
+    }
+    if (firstPageBtn) {
+      this.addEventListener(firstPageBtn, "click", () => this.goToFirstPage());
+    }
+    if (prevPageBtn) {
+      this.addEventListener(prevPageBtn, "click", () => this.goToPrevPage());
+    }
+    if (nextPageBtn) {
+      this.addEventListener(nextPageBtn, "click", () => this.goToNextPage());
+    }
+    if (lastPageBtn) {
+      this.addEventListener(lastPageBtn, "click", () => this.goToLastPage());
     }
 
     // Auto-validate on input change
@@ -287,6 +443,14 @@ export class SignalSurveyModule extends Module {
           const example = card.dataset.example;
           this.loadExample(example);
         });
+      }
+    });
+
+    // Close export menu when clicking outside
+    this.addEventListener(document, "click", (e) => {
+      const exportDropdown = e.target.closest(".export-dropdown");
+      if (!exportDropdown) {
+        this.closeExportMenu();
       }
     });
   }
@@ -393,55 +557,142 @@ export class SignalSurveyModule extends Module {
    * Process signal survey data into table format
    */
   processSignalSurveyData(data, options) {
-    let rows = [];
-    let headers = new Set();
+    try {
+      let rows = [];
+      let headers = new Set();
 
-    // Handle both single object and array of objects
-    const dataArray = Array.isArray(data) ? data : [data];
-
-    dataArray.forEach((item, index) => {
-      const dataType = this.detectDataType(item);
-      const processedRows = this.processSignalSurveyItem(
-        item,
-        options,
-        index,
-        dataType
-      );
-
-      // Handle multiple rows per item (for notes with multiple questions)
-      if (Array.isArray(processedRows)) {
-        processedRows.forEach((row) => {
-          rows.push(row);
-          Object.keys(row).forEach((key) => headers.add(key));
-        });
-      } else {
-        rows.push(processedRows);
-        Object.keys(processedRows).forEach((key) => headers.add(key));
+      // Validate input data
+      if (!data || (typeof data !== "object" && !Array.isArray(data))) {
+        throw new Error("Invalid data: Expected object or array");
       }
-    });
 
-    // Add summary row if requested and we have data
-    if (options.createSummaryRow && rows.length > 0) {
-      const summaryRow = this.createSummaryRow(rows, options);
-      rows.push(summaryRow);
-      Object.keys(summaryRow).forEach((key) => headers.add(key));
+      // Handle both single object and array of objects
+      const dataArray = Array.isArray(data) ? data : [data];
+
+      // Track data type statistics
+      const dataTypeStats = {
+        users: 0,
+        reports: 0,
+        "report-notes": 0,
+        unknown: 0,
+      };
+
+      let processedCount = 0;
+      let errorCount = 0;
+
+      dataArray.forEach((item, index) => {
+        try {
+          if (!item || typeof item !== "object") {
+            console.warn(`Skipping invalid item at index ${index}:`, item);
+            errorCount++;
+            return;
+          }
+
+          const dataType = this.detectDataType(item);
+          dataTypeStats[dataType] = (dataTypeStats[dataType] || 0) + 1;
+
+          const processedRows = this.processSignalSurveyItem(
+            item,
+            options,
+            index,
+            dataType
+          );
+
+          // Handle multiple rows per item (for notes with multiple questions)
+          if (Array.isArray(processedRows)) {
+            processedRows.forEach((row) => {
+              if (row && typeof row === "object") {
+                rows.push(row);
+                Object.keys(row).forEach((key) => headers.add(key));
+                processedCount++;
+              }
+            });
+          } else if (processedRows && typeof processedRows === "object") {
+            rows.push(processedRows);
+            Object.keys(processedRows).forEach((key) => headers.add(key));
+            processedCount++;
+          }
+        } catch (itemError) {
+          console.error(`Error processing item at index ${index}:`, itemError);
+          errorCount++;
+        }
+      });
+
+      // Validate that we have some data
+      if (rows.length === 0) {
+        throw new Error(
+          "No valid data found to process. Please check your JSON format."
+        );
+      }
+
+      // Add summary row if requested and we have data
+      if (options.createSummaryRow && rows.length > 0) {
+        try {
+          const summaryRow = this.createSummaryRow(
+            rows,
+            options,
+            dataTypeStats
+          );
+          rows.push(summaryRow);
+          Object.keys(summaryRow).forEach((key) => headers.add(key));
+        } catch (summaryError) {
+          console.warn("Error creating summary row:", summaryError);
+        }
+      }
+
+      // Store data type statistics for display
+      this.dataTypeStats = dataTypeStats;
+
+      // Log processing results
+      console.log(
+        `Processed ${processedCount} records successfully${
+          errorCount > 0 ? `, ${errorCount} errors` : ""
+        }`
+      );
+      console.log("Data type statistics:", dataTypeStats);
+      console.log("Sample processed row:", rows[0]);
+
+      return {
+        data: rows,
+        headers: Array.from(headers).sort(),
+        stats: {
+          processed: processedCount,
+          errors: errorCount,
+          dataTypes: dataTypeStats,
+        },
+      };
+    } catch (error) {
+      console.error("Error in processSignalSurveyData:", error);
+      throw new Error(`Data processing failed: ${error.message}`);
     }
-
-    return {
-      data: rows,
-      headers: Array.from(headers),
-    };
   }
 
   /**
-   * Detect the data type based on the path
+   * Detect the data type based on the path or data structure
    */
   detectDataType(item) {
-    if (!item.path) return "unknown";
+    // Check for Firestore format first
+    if (item.path) {
+      if (item.path.startsWith("report-notes/")) return "report-notes";
+      if (item.path.startsWith("reports/")) return "reports";
+      if (item.path.startsWith("users/")) return "users";
+    }
 
-    if (item.path.startsWith("report-notes/")) return "report-notes";
-    if (item.path.startsWith("reports/")) return "reports";
-    if (item.path.startsWith("users/")) return "users";
+    // Check for processed format data
+    // Users data detection
+    if (item.id && item.email && item.role && item.statistics) {
+      return "users";
+    }
+
+    // Reports data detection
+    if (item.id && item.intersectionName && item.answers && item.createdBy) {
+      return "reports";
+    }
+
+    // Report-notes data detection
+    if (item.id && item.reportId && item.userId && item.notes) {
+      return "report-notes";
+    }
 
     return "unknown";
   }
@@ -466,85 +717,119 @@ export class SignalSurveyModule extends Module {
    * Process report notes data
    */
   processReportNotes(item, options, index) {
-    const rows = [];
+    try {
+      const rows = [];
 
-    if (!item.data || !item.data.notes || !Array.isArray(item.data.notes)) {
+      // Determine if this is Firestore format or processed format
+      const isFirestoreFormat = item.path && item.data;
+      const noteData = isFirestoreFormat ? item.data : item;
+      const notePath = isFirestoreFormat
+        ? item.path
+        : `report-notes/${noteData.id}`;
+      const readTime = isFirestoreFormat ? item.readTime : noteData.readTime;
+
+      if (!noteData || !noteData.notes || !Array.isArray(noteData.notes)) {
+        console.warn(`Report notes data missing or invalid for item ${index}`);
+        return this.processGeneric(item, options, index);
+      }
+
+      noteData.notes.forEach((note, noteIndex) => {
+        try {
+          if (!note || typeof note !== "object") {
+            console.warn(`Invalid note at index ${noteIndex} in item ${index}`);
+            return;
+          }
+
+          const row = {};
+
+          // Add index if multiple items
+          if (Array.isArray(this.jsonData) && this.jsonData.length > 1) {
+            row["Record_Index"] = index + 1;
+          }
+          row["Note_Index"] = noteIndex + 1;
+
+          // Process metadata
+          if (options.includeMetadata) {
+            row["Report_Notes_Path"] = notePath;
+            if (readTime) {
+              row["Read_Time"] = options.formatTimestamps
+                ? this.formatTimestamp(readTime)
+                : readTime;
+            }
+          }
+
+          // Process report notes specific data
+          if (noteData) {
+            if (noteData.reportId) row["Report_ID"] = noteData.reportId;
+            if (noteData.userId) row["User_ID"] = noteData.userId;
+
+            if (noteData.createdAt) {
+              row["Report_Created_At"] = options.formatTimestamps
+                ? this.formatTimestamp(noteData.createdAt)
+                : noteData.createdAt;
+            }
+            if (noteData.updatedAt) {
+              row["Report_Updated_At"] = options.formatTimestamps
+                ? this.formatTimestamp(noteData.updatedAt)
+                : noteData.updatedAt;
+            }
+          }
+
+          // Process note data
+          if (note.questionId) row["Question_ID"] = note.questionId;
+          if (note.text) row["Note_Text"] = note.text;
+
+          if (note.createdAt) {
+            row["Note_Created_At"] = options.formatTimestamps
+              ? this.formatTimestamp(note.createdAt)
+              : note.createdAt;
+          }
+          if (note.updatedAt) {
+            row["Note_Updated_At"] = options.formatTimestamps
+              ? this.formatTimestamp(note.updatedAt)
+              : note.updatedAt;
+          }
+
+          // Process images with error handling
+          if (note.images && Array.isArray(note.images)) {
+            row["Image_Count"] = note.images.length;
+            row["Total_Image_Size"] = note.images.reduce((total, img) => {
+              try {
+                return total + (typeof img.size === "number" ? img.size : 0);
+              } catch {
+                return total;
+              }
+            }, 0);
+            row["Image_URLs"] = note.images
+              .map((img) => {
+                try {
+                  return img.url || img.preview || "";
+                } catch {
+                  return "";
+                }
+              })
+              .filter((url) => url)
+              .join("; ");
+          } else {
+            row["Image_Count"] = 0;
+            row["Total_Image_Size"] = 0;
+            row["Image_URLs"] = "";
+          }
+
+          rows.push(row);
+        } catch (noteError) {
+          console.error(
+            `Error processing note at index ${noteIndex}:`,
+            noteError
+          );
+        }
+      });
+
+      return rows.length > 0 ? rows : this.processGeneric(item, options, index);
+    } catch (error) {
+      console.error(`Error processing report notes for item ${index}:`, error);
       return this.processGeneric(item, options, index);
     }
-
-    item.data.notes.forEach((note, noteIndex) => {
-      const row = {};
-
-      // Add index if multiple items
-      if (Array.isArray(this.jsonData) && this.jsonData.length > 1) {
-        row["Record_Index"] = index + 1;
-      }
-      row["Note_Index"] = noteIndex + 1;
-
-      // Process metadata
-      if (options.includeMetadata) {
-        if (item.path) {
-          row["Report_Notes_Path"] = item.path;
-        }
-        if (item.readTime) {
-          row["Read_Time"] = options.formatTimestamps
-            ? this.formatTimestamp(item.readTime)
-            : item.readTime;
-        }
-      }
-
-      // Process report notes specific data
-      if (item.data) {
-        if (item.data.reportId) row["Report_ID"] = item.data.reportId;
-        if (item.data.userId) row["User_ID"] = item.data.userId;
-
-        if (item.data.createdAt) {
-          row["Report_Created_At"] = options.formatTimestamps
-            ? this.formatTimestamp(item.data.createdAt)
-            : item.data.createdAt;
-        }
-        if (item.data.updatedAt) {
-          row["Report_Updated_At"] = options.formatTimestamps
-            ? this.formatTimestamp(item.data.updatedAt)
-            : item.data.updatedAt;
-        }
-      }
-
-      // Process note data
-      if (note.questionId) row["Question_ID"] = note.questionId;
-      if (note.text) row["Note_Text"] = note.text;
-
-      if (note.createdAt) {
-        row["Note_Created_At"] = options.formatTimestamps
-          ? this.formatTimestamp(note.createdAt)
-          : note.createdAt;
-      }
-      if (note.updatedAt) {
-        row["Note_Updated_At"] = options.formatTimestamps
-          ? this.formatTimestamp(note.updatedAt)
-          : note.updatedAt;
-      }
-
-      // Process images
-      if (note.images && Array.isArray(note.images)) {
-        row["Image_Count"] = note.images.length;
-        row["Total_Image_Size"] = note.images.reduce(
-          (total, img) => total + (img.size || 0),
-          0
-        );
-        row["Image_URLs"] = note.images
-          .map((img) => img.url || img.preview)
-          .join("; ");
-      } else {
-        row["Image_Count"] = 0;
-        row["Total_Image_Size"] = 0;
-        row["Image_URLs"] = "";
-      }
-
-      rows.push(row);
-    });
-
-    return rows;
   }
 
   /**
@@ -558,70 +843,78 @@ export class SignalSurveyModule extends Module {
       row["Record_Index"] = index + 1;
     }
 
+    // Determine if this is Firestore format or processed format
+    const isFirestoreFormat = item.path && item.data;
+    const reportData = isFirestoreFormat ? item.data : item;
+    const reportPath = isFirestoreFormat
+      ? item.path
+      : `reports/${reportData.id}`;
+    const readTime = isFirestoreFormat ? item.readTime : reportData.readTime;
+
     // Process metadata
     if (options.includeMetadata) {
-      if (item.path) {
-        row["Report_Path"] = item.path;
-      }
-      if (item.readTime) {
+      row["Report_Path"] = reportPath;
+      if (readTime) {
         row["Read_Time"] = options.formatTimestamps
-          ? this.formatTimestamp(item.readTime)
-          : item.readTime;
+          ? this.formatTimestamp(readTime)
+          : readTime;
       }
     }
 
     // Process report data
-    if (item.data) {
-      const data = item.data;
-
+    if (reportData) {
       // Basic report information
-      if (data.createdBy) row["Created_By"] = data.createdBy;
-      if (data.displayName) row["Creator_Display_Name"] = data.displayName;
-      if (data.intersectionName)
-        row["Intersection_Name"] = data.intersectionName;
-      if (data.intersectionId) row["Intersection_ID"] = data.intersectionId;
-      if (data.surveyDate) row["Survey_Date"] = data.surveyDate;
-      if (data.inspectorCode) row["Inspector_Code"] = data.inspectorCode;
-      if (data.status) row["Status"] = data.status;
-      if (data.title) row["Title"] = data.title;
-      if (data.description) row["Description"] = data.description;
+      if (reportData.id) row["Report_ID"] = reportData.id;
+      if (reportData.createdBy) row["Created_By"] = reportData.createdBy;
+      if (reportData.displayName)
+        row["Creator_Display_Name"] = reportData.displayName;
+      if (reportData.intersectionName)
+        row["Intersection_Name"] = reportData.intersectionName;
+      if (reportData.intersectionId)
+        row["Intersection_ID"] = reportData.intersectionId;
+      if (reportData.surveyDate) row["Survey_Date"] = reportData.surveyDate;
+      if (reportData.inspectorCode)
+        row["Inspector_Code"] = reportData.inspectorCode;
+      if (reportData.status) row["Status"] = reportData.status;
+      if (reportData.title) row["Title"] = reportData.title;
+      if (reportData.description) row["Description"] = reportData.description;
 
       // Timestamps
-      if (data.createdAt) {
+      if (reportData.createdAt) {
         row["Created_At"] = options.formatTimestamps
-          ? this.formatTimestamp(data.createdAt)
-          : data.createdAt;
+          ? this.formatTimestamp(reportData.createdAt)
+          : reportData.createdAt;
       }
-      if (data.updatedAt) {
+      if (reportData.updatedAt) {
         row["Updated_At"] = options.formatTimestamps
-          ? this.formatTimestamp(data.updatedAt)
-          : data.updatedAt;
+          ? this.formatTimestamp(reportData.updatedAt)
+          : reportData.updatedAt;
       }
 
       // Process answers
-      if (data.answers && Array.isArray(data.answers)) {
-        row["Answer_Count"] = data.answers.length;
+      if (reportData.answers && Array.isArray(reportData.answers)) {
+        row["Answer_Count"] = reportData.answers.length;
 
         // Flatten answers if requested
         if (options.flattenStatistics) {
-          data.answers.forEach((answer) => {
+          reportData.answers.forEach((answer) => {
             const key = `Answer_${answer.questionId}`;
             row[key] = answer.value || "";
           });
         } else {
-          row["Answers"] = JSON.stringify(data.answers);
+          row["Answers"] = JSON.stringify(reportData.answers);
         }
       }
 
       // Process other arrays
-      if (data.files && Array.isArray(data.files)) {
-        row["File_Count"] = data.files.length;
+      if (reportData.files && Array.isArray(reportData.files)) {
+        row["File_Count"] = reportData.files.length;
       }
-      if (data.tags && Array.isArray(data.tags)) {
-        row["Tags"] = data.tags.join(", ");
+      if (reportData.tags && Array.isArray(reportData.tags)) {
+        row["Tags"] = reportData.tags.join(", ");
       }
-      if (data.regionIds && Array.isArray(data.regionIds)) {
-        row["Region_IDs"] = data.regionIds.join(", ");
+      if (reportData.regionIds && Array.isArray(reportData.regionIds)) {
+        row["Region_IDs"] = reportData.regionIds.join(", ");
       }
     }
 
@@ -639,47 +932,52 @@ export class SignalSurveyModule extends Module {
       row["Record_Index"] = index + 1;
     }
 
+    // Determine if this is Firestore format or processed format
+    const isFirestoreFormat = item.path && item.data;
+    const userData = isFirestoreFormat ? item.data : item;
+    const userPath = isFirestoreFormat
+      ? item.path
+      : `users/${userData.id || userData.uid}`;
+    const readTime = isFirestoreFormat ? item.readTime : userData.readTime;
+
     // Process metadata
     if (options.includeMetadata) {
-      if (item.path) {
-        row["User_Path"] = item.path;
-      }
-      if (item.readTime) {
+      row["User_Path"] = userPath;
+      if (readTime) {
         row["Read_Time"] = options.formatTimestamps
-          ? this.formatTimestamp(item.readTime)
-          : item.readTime;
+          ? this.formatTimestamp(readTime)
+          : readTime;
       }
     }
 
     // Process user data
-    if (item.data) {
-      const data = item.data;
-
+    if (userData) {
       // Basic user information
-      if (data.uid) row["User_ID"] = data.uid;
-      if (data.email) row["Email"] = data.email;
-      if (data.displayName) row["Display_Name"] = data.displayName;
-      if (data.role) row["Role"] = data.role;
-      if (data.missionsCompleted !== undefined)
-        row["Missions_Completed"] = data.missionsCompleted;
-      if (data.missionsInProgress !== undefined)
-        row["Missions_In_Progress"] = data.missionsInProgress;
+      if (userData.uid) row["User_ID"] = userData.uid;
+      if (userData.id) row["User_ID"] = userData.id;
+      if (userData.email) row["Email"] = userData.email;
+      if (userData.displayName) row["Display_Name"] = userData.displayName;
+      if (userData.role) row["Role"] = userData.role;
+      if (userData.missionsCompleted !== undefined)
+        row["Missions_Completed"] = userData.missionsCompleted;
+      if (userData.missionsInProgress !== undefined)
+        row["Missions_In_Progress"] = userData.missionsInProgress;
 
       // Timestamps
-      if (data.createdAt) {
+      if (userData.createdAt) {
         row["Created_At"] = options.formatTimestamps
-          ? this.formatTimestamp(data.createdAt)
-          : data.createdAt;
+          ? this.formatTimestamp(userData.createdAt)
+          : userData.createdAt;
       }
-      if (data.updatedAt) {
+      if (userData.updatedAt) {
         row["Updated_At"] = options.formatTimestamps
-          ? this.formatTimestamp(data.updatedAt)
-          : data.updatedAt;
+          ? this.formatTimestamp(userData.updatedAt)
+          : userData.updatedAt;
       }
 
       // Statistics
-      if (data.statistics && options.flattenStatistics) {
-        const stats = data.statistics;
+      if (userData.statistics && options.flattenStatistics) {
+        const stats = userData.statistics;
         if (stats.flashingIntersections !== undefined)
           row["Flashing_Intersections"] = stats.flashingIntersections;
         if (stats.singleFlashIntersections !== undefined)
@@ -692,8 +990,8 @@ export class SignalSurveyModule extends Module {
           row["Three_Color_Intersections"] = stats.threeColorIntersections;
         if (stats.totalControllers !== undefined)
           row["Total_Controllers"] = stats.totalControllers;
-      } else if (data.statistics) {
-        row["Statistics"] = JSON.stringify(data.statistics);
+      } else if (userData.statistics) {
+        row["Statistics"] = JSON.stringify(userData.statistics);
       }
     }
 
@@ -801,7 +1099,7 @@ export class SignalSurveyModule extends Module {
   /**
    * Create summary row
    */
-  createSummaryRow(rows, options) {
+  createSummaryRow(rows, options, dataTypeStats = {}) {
     const summaryRow = {};
 
     // Add summary identifier
@@ -835,21 +1133,19 @@ export class SignalSurveyModule extends Module {
       }
     });
 
-    // Count different data types
-    const userRows = rows.filter(
-      (row) => row.User_Path && row.User_Path.includes("users/")
-    );
-    const reportRows = rows.filter(
-      (row) => row.Report_Path && row.Report_Path.includes("reports/")
-    );
-    const noteRows = rows.filter(
-      (row) =>
-        row.Report_Notes_Path && row.Report_Notes_Path.includes("report-notes/")
-    );
+    // Count different data types using provided statistics
+    if (dataTypeStats.users > 0)
+      summaryRow["User_Records"] = dataTypeStats.users;
+    if (dataTypeStats.reports > 0)
+      summaryRow["Report_Records"] = dataTypeStats.reports;
+    if (dataTypeStats["report-notes"] > 0)
+      summaryRow["Note_Records"] = dataTypeStats["report-notes"];
+    if (dataTypeStats.unknown > 0)
+      summaryRow["Unknown_Records"] = dataTypeStats.unknown;
 
-    if (userRows.length > 0) summaryRow["User_Records"] = userRows.length;
-    if (reportRows.length > 0) summaryRow["Report_Records"] = reportRows.length;
-    if (noteRows.length > 0) summaryRow["Note_Records"] = noteRows.length;
+    // Add processing metadata
+    summaryRow["Total_Records"] = rows.length;
+    summaryRow["Processing_Time"] = new Date().toLocaleTimeString();
 
     return summaryRow;
   }
@@ -882,7 +1178,7 @@ export class SignalSurveyModule extends Module {
   }
 
   /**
-   * Render table
+   * Render table with pagination
    */
   renderTable() {
     const tableHead = document.getElementById("signalTableHead");
@@ -908,8 +1204,20 @@ export class SignalSurveyModule extends Module {
     });
     tableHead.appendChild(headerRow);
 
-    // Create data rows
-    this.tableData.forEach((row, index) => {
+    // Get data to display (considering filters and sorting)
+    const dataToDisplay =
+      this.sortedData || this.filteredData || this.tableData;
+
+    // Calculate pagination
+    this.totalPages = Math.ceil(dataToDisplay.length / this.pageSize);
+    this.currentPage = Math.min(this.currentPage, this.totalPages);
+
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = Math.min(startIndex + this.pageSize, dataToDisplay.length);
+    const pageData = dataToDisplay.slice(startIndex, endIndex);
+
+    // Create data rows for current page
+    pageData.forEach((row, index) => {
       const tr = document.createElement("tr");
 
       // Add summary row styling
@@ -928,12 +1236,27 @@ export class SignalSurveyModule extends Module {
     });
 
     // Update stats
-    const dataRows = this.tableData.filter(
+    const dataRows = dataToDisplay.filter(
       (row) => row.Record_Index !== "SUMMARY" && row.User_Path !== "SUMMARY"
     );
     rowCount.textContent = dataRows.length;
     columnCount.textContent = this.headers.length;
-    dataType.textContent = Array.isArray(this.jsonData) ? "Array" : "Object";
+
+    // Enhanced data type display
+    let dataTypeText = Array.isArray(this.jsonData) ? "Array" : "Object";
+    if (this.dataTypeStats) {
+      const typeCounts = Object.entries(this.dataTypeStats)
+        .filter(([_, count]) => count > 0)
+        .map(([type, count]) => `${type}(${count})`)
+        .join(", ");
+      if (typeCounts) {
+        dataTypeText += ` - ${typeCounts}`;
+      }
+    }
+    dataType.textContent = dataTypeText;
+
+    // Update pagination controls
+    this.updatePaginationControls(dataRows.length, startIndex, endIndex);
   }
 
   /**
@@ -941,17 +1264,307 @@ export class SignalSurveyModule extends Module {
    */
   showPreview() {
     const previewSection = document.getElementById("signalPreviewSection");
+    const tableControls = document.getElementById("signalTableControls");
+    const paginationControls = document.getElementById(
+      "signalPaginationControls"
+    );
+
     if (previewSection) {
       previewSection.style.display = "block";
       previewSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+
+    if (tableControls) {
+      tableControls.style.display = "block";
+      this.populateColumnSelectors();
+    }
+
+    if (paginationControls) {
+      paginationControls.style.display = "block";
+    }
+  }
+
+  /**
+   * Update pagination controls
+   */
+  updatePaginationControls(totalRecords, startIndex, endIndex) {
+    const currentPageEl = document.getElementById("signalCurrentPage");
+    const totalPagesEl = document.getElementById("signalTotalPages");
+    const startRecordEl = document.getElementById("signalStartRecord");
+    const endRecordEl = document.getElementById("signalEndRecord");
+    const totalRecordsEl = document.getElementById("signalTotalRecords");
+    const firstPageBtn = document.getElementById("signalFirstPage");
+    const prevPageBtn = document.getElementById("signalPrevPage");
+    const nextPageBtn = document.getElementById("signalNextPage");
+    const lastPageBtn = document.getElementById("signalLastPage");
+
+    if (currentPageEl) currentPageEl.textContent = this.currentPage;
+    if (totalPagesEl) totalPagesEl.textContent = this.totalPages;
+    if (startRecordEl) startRecordEl.textContent = startIndex + 1;
+    if (endRecordEl) endRecordEl.textContent = endIndex;
+    if (totalRecordsEl) totalRecordsEl.textContent = totalRecords;
+
+    // Update button states
+    if (firstPageBtn) firstPageBtn.disabled = this.currentPage === 1;
+    if (prevPageBtn) prevPageBtn.disabled = this.currentPage === 1;
+    if (nextPageBtn)
+      nextPageBtn.disabled = this.currentPage === this.totalPages;
+    if (lastPageBtn)
+      lastPageBtn.disabled = this.currentPage === this.totalPages;
+  }
+
+  /**
+   * Change page size
+   */
+  changePageSize() {
+    const pageSizeSelect = document.getElementById("signalPageSize");
+    if (pageSizeSelect) {
+      this.pageSize = parseInt(pageSizeSelect.value);
+      this.currentPage = 1; // Reset to first page
+      this.renderTable();
+    }
+  }
+
+  /**
+   * Go to first page
+   */
+  goToFirstPage() {
+    if (this.currentPage > 1) {
+      this.currentPage = 1;
+      this.renderTable();
+    }
+  }
+
+  /**
+   * Go to previous page
+   */
+  goToPrevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.renderTable();
+    }
+  }
+
+  /**
+   * Go to next page
+   */
+  goToNextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.renderTable();
+    }
+  }
+
+  /**
+   * Go to last page
+   */
+  goToLastPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage = this.totalPages;
+      this.renderTable();
+    }
+  }
+
+  /**
+   * Populate column selectors for filtering and sorting
+   */
+  populateColumnSelectors() {
+    const filterColumn = document.getElementById("signalFilterColumn");
+    const sortColumn = document.getElementById("signalSortColumn");
+
+    if (filterColumn && sortColumn) {
+      // Clear existing options
+      filterColumn.innerHTML = '<option value="">All columns</option>';
+      sortColumn.innerHTML = '<option value="">No sorting</option>';
+
+      // Add column options
+      this.headers.forEach((header) => {
+        const filterOption = document.createElement("option");
+        filterOption.value = header;
+        filterOption.textContent = header;
+        filterColumn.appendChild(filterOption);
+
+        const sortOption = document.createElement("option");
+        sortOption.value = header;
+        sortOption.textContent = header;
+        sortColumn.appendChild(sortOption);
+      });
+    }
+  }
+
+  /**
+   * Apply filter to table data
+   */
+  applyFilter() {
+    const filterColumn = document.getElementById("signalFilterColumn");
+    const filterValue = document.getElementById("signalFilterValue");
+
+    if (!filterColumn || !filterValue) return;
+
+    const column = filterColumn.value;
+    const value = filterValue.value.trim().toLowerCase();
+
+    if (!column || !value) {
+      this.showNotification(
+        "Please select a column and enter a filter value",
+        "warning"
+      );
+      return;
+    }
+
+    this.filteredData = this.tableData.filter((row) => {
+      const cellValue = String(row[column] || "").toLowerCase();
+      return cellValue.includes(value);
+    });
+
+    this.renderFilteredTable();
+    this.showNotification(
+      `Filtered to ${this.filteredData.length} records`,
+      "success"
+    );
+  }
+
+  /**
+   * Clear filter and show all data
+   */
+  clearFilter() {
+    const filterColumn = document.getElementById("signalFilterColumn");
+    const filterValue = document.getElementById("signalFilterValue");
+
+    if (filterColumn) filterColumn.value = "";
+    if (filterValue) filterValue.value = "";
+
+    this.filteredData = null;
+    this.renderTable();
+    this.showNotification("Filter cleared", "success");
+  }
+
+  /**
+   * Apply sorting to table data
+   */
+  applySort() {
+    const sortColumn = document.getElementById("signalSortColumn");
+    const sortOrder = document.getElementById("signalSortOrder");
+
+    if (!sortColumn || !sortOrder) return;
+
+    const column = sortColumn.value;
+    const order = sortOrder.value;
+
+    if (!column) {
+      this.showNotification("Please select a column to sort by", "warning");
+      return;
+    }
+
+    const dataToSort = this.filteredData || this.tableData;
+
+    this.sortedData = [...dataToSort].sort((a, b) => {
+      const aVal = a[column];
+      const bVal = b[column];
+
+      // Handle different data types
+      let comparison = 0;
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        comparison = aVal - bVal;
+      } else {
+        const aStr = String(aVal || "").toLowerCase();
+        const bStr = String(bVal || "").toLowerCase();
+        comparison = aStr.localeCompare(bStr);
+      }
+
+      return order === "desc" ? -comparison : comparison;
+    });
+
+    this.renderSortedTable();
+    this.showNotification(`Sorted by ${column} (${order})`, "success");
+  }
+
+  /**
+   * Render filtered table
+   */
+  renderFilteredTable() {
+    const tableHead = document.getElementById("signalTableHead");
+    const tableBody = document.getElementById("signalTableBody");
+    const rowCount = document.getElementById("signalRowCount");
+
+    if (!tableHead || !tableBody || !rowCount) return;
+
+    // Clear existing content
+    tableBody.innerHTML = "";
+
+    // Create data rows
+    this.filteredData.forEach((row, index) => {
+      const tr = document.createElement("tr");
+
+      // Add summary row styling
+      if (row.Record_Index === "SUMMARY" || row.User_Path === "SUMMARY") {
+        tr.classList.add("summary-row");
+      }
+
+      this.headers.forEach((header) => {
+        const td = document.createElement("td");
+        const value = row[header] ?? "";
+        td.textContent = String(value);
+        td.title = String(value);
+        tr.appendChild(td);
+      });
+      tableBody.appendChild(tr);
+    });
+
+    // Update row count
+    const dataRows = this.filteredData.filter(
+      (row) => row.Record_Index !== "SUMMARY" && row.User_Path !== "SUMMARY"
+    );
+    rowCount.textContent = dataRows.length;
+  }
+
+  /**
+   * Render sorted table
+   */
+  renderSortedTable() {
+    const tableHead = document.getElementById("signalTableHead");
+    const tableBody = document.getElementById("signalTableBody");
+    const rowCount = document.getElementById("signalRowCount");
+
+    if (!tableHead || !tableBody || !rowCount) return;
+
+    // Clear existing content
+    tableBody.innerHTML = "";
+
+    // Create data rows
+    this.sortedData.forEach((row, index) => {
+      const tr = document.createElement("tr");
+
+      // Add summary row styling
+      if (row.Record_Index === "SUMMARY" || row.User_Path === "SUMMARY") {
+        tr.classList.add("summary-row");
+      }
+
+      this.headers.forEach((header) => {
+        const td = document.createElement("td");
+        const value = row[header] ?? "";
+        td.textContent = String(value);
+        td.title = String(value);
+        tr.appendChild(td);
+      });
+      tableBody.appendChild(tr);
+    });
+
+    // Update row count
+    const dataRows = this.sortedData.filter(
+      (row) => row.Record_Index !== "SUMMARY" && row.User_Path !== "SUMMARY"
+    );
+    rowCount.textContent = dataRows.length;
   }
 
   /**
    * Copy table to clipboard
    */
   async copyTable() {
-    if (this.tableData.length === 0) {
+    const dataToCopy = this.sortedData || this.filteredData || this.tableData;
+
+    if (dataToCopy.length === 0) {
       this.showNotification("No table data to copy", "warning");
       return;
     }
@@ -959,7 +1572,7 @@ export class SignalSurveyModule extends Module {
     try {
       let csvContent = this.headers.join("\t") + "\n";
 
-      this.tableData.forEach((row) => {
+      dataToCopy.forEach((row) => {
         const values = this.headers.map((header) => {
           const value = row[header] ?? "";
           return String(value).replace(/\t/g, " ").replace(/\n/g, " ");
@@ -969,7 +1582,7 @@ export class SignalSurveyModule extends Module {
 
       await navigator.clipboard.writeText(csvContent);
       this.showNotification(
-        "Signal survey table copied to clipboard! Paste into Excel.",
+        `Signal survey table copied to clipboard! (${dataToCopy.length} records)`,
         "success"
       );
     } catch (error) {
@@ -979,10 +1592,53 @@ export class SignalSurveyModule extends Module {
   }
 
   /**
+   * Toggle export menu visibility
+   */
+  toggleExportMenu() {
+    const exportMenu = document.getElementById("signalExportMenu");
+    const exportBtn = document.getElementById("signalExportBtn");
+    const exportDropdown = exportBtn?.closest(".export-dropdown");
+
+    if (exportMenu && exportDropdown) {
+      const isOpen = exportMenu.classList.contains("show");
+
+      if (isOpen) {
+        exportMenu.classList.remove("show");
+        exportDropdown.classList.remove("active");
+      } else {
+        // Close any other open menus first
+        document.querySelectorAll(".export-menu.show").forEach((menu) => {
+          menu.classList.remove("show");
+          menu.closest(".export-dropdown")?.classList.remove("active");
+        });
+
+        exportMenu.classList.add("show");
+        exportDropdown.classList.add("active");
+      }
+    }
+  }
+
+  /**
+   * Close export menu when clicking outside
+   */
+  closeExportMenu() {
+    const exportMenu = document.getElementById("signalExportMenu");
+    const exportDropdown = exportMenu?.closest(".export-dropdown");
+
+    if (exportMenu && exportDropdown) {
+      exportMenu.classList.remove("show");
+      exportDropdown.classList.remove("active");
+    }
+  }
+
+  /**
    * Download CSV file
    */
   downloadCsv() {
-    if (this.tableData.length === 0) {
+    const dataToDownload =
+      this.sortedData || this.filteredData || this.tableData;
+
+    if (dataToDownload.length === 0) {
       this.showNotification("No table data to download", "warning");
       return;
     }
@@ -990,7 +1646,7 @@ export class SignalSurveyModule extends Module {
     try {
       let csvContent = this.headers.join(",") + "\n";
 
-      this.tableData.forEach((row) => {
+      dataToDownload.forEach((row) => {
         const values = this.headers.map((header) => {
           const value = row[header] ?? "";
           // Escape CSV values
@@ -1007,20 +1663,10 @@ export class SignalSurveyModule extends Module {
         csvContent += values.join(",") + "\n";
       });
 
-      const blob = new Blob([csvContent], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `signal-survey-data-${
-        new Date().toISOString().split("T")[0]
-      }.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
+      this.downloadFile(csvContent, "signal-survey-data", "csv", "text/csv");
+      this.closeExportMenu();
       this.showNotification(
-        "Signal survey CSV file downloaded successfully!",
+        `CSV file downloaded successfully! (${dataToDownload.length} records)`,
         "success"
       );
     } catch (error) {
@@ -1030,11 +1676,131 @@ export class SignalSurveyModule extends Module {
   }
 
   /**
+   * Download JSON file
+   */
+  downloadJson() {
+    const dataToDownload =
+      this.sortedData || this.filteredData || this.tableData;
+
+    if (dataToDownload.length === 0) {
+      this.showNotification("No table data to download", "warning");
+      return;
+    }
+
+    try {
+      const jsonData = {
+        metadata: {
+          exportedAt: new Date().toISOString(),
+          recordCount: dataToDownload.length,
+          columnCount: this.headers.length,
+          dataTypes: this.dataTypeStats || {},
+          filters: this.filteredData ? "Applied" : "None",
+          sorting: this.sortedData ? "Applied" : "None",
+        },
+        headers: this.headers,
+        data: dataToDownload,
+      };
+
+      const jsonContent = JSON.stringify(jsonData, null, 2);
+      this.downloadFile(
+        jsonContent,
+        "signal-survey-data",
+        "json",
+        "application/json"
+      );
+      this.closeExportMenu();
+      this.showNotification(
+        `JSON file downloaded successfully! (${dataToDownload.length} records)`,
+        "success"
+      );
+    } catch (error) {
+      console.error("Failed to download JSON:", error);
+      this.showNotification("Failed to download JSON", "error");
+    }
+  }
+
+  /**
+   * Download TXT file
+   */
+  downloadTxt() {
+    const dataToDownload =
+      this.sortedData || this.filteredData || this.tableData;
+
+    if (dataToDownload.length === 0) {
+      this.showNotification("No table data to download", "warning");
+      return;
+    }
+
+    try {
+      let txtContent = `Signal Survey Data Export\n`;
+      txtContent += `Generated: ${new Date().toLocaleString()}\n`;
+      txtContent += `Records: ${dataToDownload.length}\n`;
+      txtContent += `Columns: ${this.headers.length}\n`;
+      txtContent += `\n${"=".repeat(80)}\n\n`;
+
+      // Create a formatted table
+      const colWidths = this.headers.map((header) => {
+        const maxLength = Math.max(
+          header.length,
+          ...dataToDownload.map((row) => String(row[header] || "").length)
+        );
+        return Math.min(maxLength, 30); // Cap at 30 characters
+      });
+
+      // Header row
+      const headerRow = this.headers
+        .map((header, i) => header.padEnd(colWidths[i]))
+        .join(" | ");
+      txtContent += headerRow + "\n";
+      txtContent += "-".repeat(headerRow.length) + "\n";
+
+      // Data rows
+      dataToDownload.forEach((row) => {
+        const dataRow = this.headers
+          .map((header, i) => {
+            const value = String(row[header] || "").substring(0, colWidths[i]);
+            return value.padEnd(colWidths[i]);
+          })
+          .join(" | ");
+        txtContent += dataRow + "\n";
+      });
+
+      this.downloadFile(txtContent, "signal-survey-data", "txt", "text/plain");
+      this.closeExportMenu();
+      this.showNotification(
+        `TXT file downloaded successfully! (${dataToDownload.length} records)`,
+        "success"
+      );
+    } catch (error) {
+      console.error("Failed to download TXT:", error);
+      this.showNotification("Failed to download TXT", "error");
+    }
+  }
+
+  /**
+   * Generic file download helper
+   */
+  downloadFile(content, filename, extension, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filename}-${
+      new Date().toISOString().split("T")[0]
+    }.${extension}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
    * Clear all data
    */
   clearAll() {
     const jsonInput = document.getElementById("signalJsonInput");
     const previewSection = document.getElementById("signalPreviewSection");
+    const tableControls = document.getElementById("signalTableControls");
     const convertBtn = document.getElementById("signalConvertBtn");
 
     if (jsonInput) {
@@ -1046,14 +1812,38 @@ export class SignalSurveyModule extends Module {
       previewSection.style.display = "none";
     }
 
+    if (tableControls) {
+      tableControls.style.display = "none";
+    }
+
     if (convertBtn) {
       convertBtn.disabled = true;
     }
 
+    // Reset all data
     this.jsonData = null;
     this.tableData = [];
     this.headers = [];
     this.isValidJson = false;
+    this.filteredData = null;
+    this.sortedData = null;
+    this.dataTypeStats = null;
+
+    // Reset pagination
+    this.currentPage = 1;
+    this.totalPages = 1;
+    this.isProcessing = false;
+
+    // Clear filter and sort controls
+    const filterColumn = document.getElementById("signalFilterColumn");
+    const filterValue = document.getElementById("signalFilterValue");
+    const sortColumn = document.getElementById("signalSortColumn");
+    const sortOrder = document.getElementById("signalSortOrder");
+
+    if (filterColumn) filterColumn.value = "";
+    if (filterValue) filterValue.value = "";
+    if (sortColumn) sortColumn.value = "";
+    if (sortOrder) sortOrder.value = "asc";
 
     this.updateStatus("ready", "Ready to convert");
   }
